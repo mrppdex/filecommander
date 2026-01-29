@@ -10,6 +10,7 @@ from tui.effects import MatrixScreen
 from tui.preview import FilePreview
 from tui.modals import ConfirmationModal
 from tui.input import InputModal
+from typing import Optional
 
 class MainScreen(Screen):
     BINDINGS = [
@@ -39,7 +40,7 @@ class MainScreen(Screen):
         self.app.push_screen(MatrixScreen())
         
     def action_filter(self):
-        def set_filter(pattern: str | None):
+        def set_filter(pattern: Optional[str]):
             self.get_active_pane().set_filter(pattern)
             
         self.app.push_screen(InputModal("Filter by regex (empty to clear):", placeholder="e.g. ^test.*\\.py$"), set_filter)
@@ -53,7 +54,7 @@ class MainScreen(Screen):
         pane = self.get_active_pane()
         current = pane.current_path
         
-        def change_path(path: str | None):
+        def change_path(path: Optional[str]):
             if not path:
                 return
             

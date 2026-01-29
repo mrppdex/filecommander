@@ -2,6 +2,7 @@ import os
 from textual.widgets import Static, DataTable
 from textual.containers import Vertical
 from utils.filesystem import list_directory
+from typing import Optional
 
 class FilePane(Vertical):
     def __init__(self, **kwargs):
@@ -50,7 +51,7 @@ class FilePane(Vertical):
     def sort_by(self):
         return self.sort_mode
         
-    def set_filter(self, pattern: str | None):
+    def set_filter(self, pattern: Optional[str]):
         self.filter_pattern = pattern
         self.refresh_files()
 

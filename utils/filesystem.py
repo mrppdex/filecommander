@@ -1,10 +1,11 @@
 import os
 import datetime
 import humanize
+from typing import Optional
 
 import re
 
-def list_directory(path: str, sort_by: str = "name", filter_pattern: str | None = None) -> list[dict]:
+def list_directory(path: str, sort_by: str = "name", filter_pattern: Optional[str] = None) -> list[dict]:
     """
     List contents of a directory and return metadata.
     sort_by: "name", "size", "date"

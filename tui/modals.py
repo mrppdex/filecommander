@@ -2,6 +2,7 @@ from textual.app import ComposeResult
 from textual.screen import ModalScreen
 from textual.widgets import Label, Button
 from textual.containers import Grid
+from typing import Optional
 
 class ConfirmationModal(ModalScreen[bool]):
     """A modal screen for confirmation."""
@@ -34,7 +35,7 @@ class ConfirmationModal(ModalScreen[bool]):
     }
     """
 
-    def __init__(self, message: str, name: str | None = None, id: str | None = None, classes: str | None = None):
+    def __init__(self, message: str, name: Optional[str] = None, id: Optional[str] = None, classes: Optional[str] = None):
         super().__init__(name, id, classes)
         self.message = message
 
