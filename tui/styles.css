@@ -1,0 +1,36 @@
+Screen {
+    layout: vertical;
+}
+
+#panes {
+    layout: horizontal;
+    height: 1fr;
+}
+
+FilePane {
+    width: 1fr;
+    border: solid green;
+    padding: 1;
+}
+
+#path-display {
+    background: $boost;
+    color: $text;
+    padding: 0 1;
+    margin-bottom: 1;
+}
+
+DataTable {
+    height: 1fr;
+    border: hidden;
+}
+
+DataTable>.datatable--header {
+    background: $panel-lighten-1;
+    color: $text;
+}
+
+DataTable>.datatable--cursor {
+    background: $secondary;
+    color: $text;
+}
