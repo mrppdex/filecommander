@@ -11,6 +11,7 @@ from tui.preview import FilePreview
 from tui.modals import ConfirmationModal
 from tui.input import InputModal
 from typing import Optional
+from tui.git import GitScreen
 
 class MainScreen(Screen):
     BINDINGS = [
@@ -24,6 +25,7 @@ class MainScreen(Screen):
         ("ctrl+f", "filter", "Filter"),
         ("ctrl+o", "sort", "Sort"),
         ("ctrl+g", "goto", "Go to"),
+        ("ctrl+v", "open_git", "Git"),
     ]
 
     def action_view(self):
@@ -66,6 +68,10 @@ class MainScreen(Screen):
 
         self.app.push_screen(InputModal("Go to path:", initial_value=current, placeholder="/path/to/dir"), change_path)
 
+
+    def action_open_git(self):
+        pane = self.get_active_pane()
+        self.app.push_screen(GitScreen(pane.current_path))
 
     def compose(self):
         yield Header()
