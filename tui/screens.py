@@ -277,11 +277,16 @@ class MainScreen(Screen):
             if not name:
                 return
             path = os.path.join(self.get_active_pane().current_path, name)
+            if os.path.isdir(path):
+                self.notify(f"Cannot create file: a folder named '{name}' already exists", severity="error")
+                return
             try:
                 with open(path, 'x') as f:
                     pass
                 self.get_active_pane().refresh_files()
                 self.notify(f"Created file {name}")
+            except FileExistsError:
+                self.notify(f"File '{name}' already exists", severity="error")
             except OSError as e:
                 self.notify(f"Error creating file: {e}", severity="error")
 

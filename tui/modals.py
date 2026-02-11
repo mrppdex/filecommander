@@ -12,11 +12,6 @@ class ConfirmationModal(ModalScreen[bool]):
         align: center middle;
     }
 
-    BINDINGS = [("escape", "dismiss", "Cancel")]
-
-    def action_dismiss(self):
-        self.dismiss(False)
-
     #dialog {
         grid-size: 2;
         grid-gutter: 1 2;
@@ -40,6 +35,11 @@ class ConfirmationModal(ModalScreen[bool]):
     }
     """
 
+    BINDINGS = [("escape", "dismiss", "Cancel")]
+
+    def action_dismiss(self):
+        self.dismiss(False)
+
     def __init__(self, message: str, name: Optional[str] = None, id: Optional[str] = None, classes: Optional[str] = None):
         super().__init__(name, id, classes)
         self.message = message
@@ -55,6 +55,7 @@ class ConfirmationModal(ModalScreen[bool]):
             self.dismiss(True)
         else:
             self.dismiss(False)
+
 
 class DeleteOptionsModal(ModalScreen[str]):
     """A modal screen for delete options (Archive, Delete, Cancel)."""
