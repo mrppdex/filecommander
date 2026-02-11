@@ -10,38 +10,13 @@ from typing import Optional
 class CommanderTable(DataTable):
     @on(events.Click)
     def on_click(self, event: events.Click) -> None:
-        # Debug logging to file
-        # with open("debug_click.log", "a") as f:
-        #     f.write(f"Click: button={event.button}, modifiers={event.modifiers}\n")
-
-        # Allow left click (1) or right click (3) for selection if modifiers are present
-        # On Mac, Ctrl+Click often comes as Button 3
-        if event.button == 1 or event.button == 3:
+        if event.button == 1:
             try:
                 # Attempt to get the row under the mouse
                 coordinate = self.hover_coordinate
                 if coordinate:
                     cell_key = self.coordinate_to_cell_key(coordinate)
-                    # Check for modifiers
-                    # Textual modifiers: ctrl, shift, alt, meta
-                    ctrl = "ctrl" in event.modifiers or "meta" in event.modifiers
-                    shift = "shift" in event.modifiers
-                    
-                    # Also consider simple Right Click (Button 3) as a toggle if no modifiers? 
-                    # Or just treat Button 3 as "Ctrl+Click" equivalent? 
-                    # Let's say Button 3 is "Toggle"
-                    if event.button == 3:
-                        ctrl = True
-
-                    if ctrl or shift:
-                        # Custom message for selection
-                        self.post_message(self.FileSelectionEvent(cell_key.row_key, ctrl, shift))
-                        # Stop event propagation to prevent DataTable from handling it
-                        event.stop()
-                        self.cursor_coordinate = coordinate
-                    elif event.button == 1:
-                        # Normal left click without modifiers
-                        self.post_message(DataTable.RowSelected(self, cell_key.row_key))
+                    self.post_message(DataTable.RowSelected(self, cell_key.row_key))
             except Exception:
                 pass
 
