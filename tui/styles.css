@@ -1,16 +1,11 @@
 Screen {
     layout: vertical;
+    height: 100%;
 }
 
 #panes {
     layout: horizontal;
     height: 1fr;
-}
-
-FilePane {
-    width: 1fr;
-    border: solid green;
-    padding: 1;
 }
 
 #path-display {

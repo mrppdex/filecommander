@@ -23,6 +23,11 @@ class InputModal(ModalScreen[str]):
     }
     """
 
+    BINDINGS = [("escape", "dismiss", "Cancel")]
+
+    def action_dismiss(self):
+        self.dismiss(None)
+
     def __init__(self, prompt: str, placeholder: str = "", initial_value: str = ""):
         super().__init__()
         self.prompt = prompt

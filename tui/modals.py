@@ -1,16 +1,21 @@
 from textual.app import ComposeResult
 from textual.screen import ModalScreen
 from textual.widgets import Label, Button
-from textual.containers import Grid
+from textual.containers import Grid, Vertical
 from typing import Optional
 
 class ConfirmationModal(ModalScreen[bool]):
     """A modal screen for confirmation."""
 
     CSS = """
-    ConfirmationModal {
+    ConfirmationModal, DeleteOptionsModal {
         align: center middle;
     }
+
+    BINDINGS = [("escape", "dismiss", "Cancel")]
+
+    def action_dismiss(self):
+        self.dismiss(False)
 
     #dialog {
         grid-size: 2;
@@ -50,3 +55,82 @@ class ConfirmationModal(ModalScreen[bool]):
             self.dismiss(True)
         else:
             self.dismiss(False)
+
+class DeleteOptionsModal(ModalScreen[str]):
+    """A modal screen for delete options (Archive, Delete, Cancel)."""
+
+    CSS = """
+    DeleteOptionsModal #dialog {
+        grid-size: 3;
+        grid-gutter: 1 2;
+        grid-rows: 1fr 3;
+        width: 70;
+    }
+    DeleteOptionsModal #question {
+        column-span: 3;
+    }
+    """
+
+    BINDINGS = [("escape", "dismiss", "Cancel")]
+
+    def action_dismiss(self):
+        self.dismiss("cancel")
+
+    def __init__(self, message: str, name: Optional[str] = None, id: Optional[str] = None, classes: Optional[str] = None):
+        super().__init__(name, id, classes)
+        self.message = message
+
+    def compose(self) -> ComposeResult:
+        with Grid(id="dialog"):
+            yield Label(self.message, id="question")
+            yield Button("Archive", variant="primary", id="archive")
+            yield Button("Delete", variant="error", id="delete")
+            yield Button("Cancel", id="cancel")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.dismiss(event.button.id)
+
+class MenuModal(ModalScreen[str]):
+    """A modal screen for displaying a menu of actions."""
+
+    CSS = """
+    MenuModal {
+        align: center middle;
+    }
+
+    #menu-container {
+        width: 40;
+        height: auto;
+        border: thick $background 80%;
+        background: $surface;
+        padding: 1;
+    }
+
+    MenuModal Button {
+        width: 100%;
+        margin-bottom: 1;
+    }
+    """
+
+    BINDINGS = [("escape", "dismiss", "Cancel")]
+
+    def action_dismiss(self):
+        self.dismiss(None)
+
+    def __init__(self, title: str, items: list[tuple[str, str]], name: Optional[str] = None, id: Optional[str] = None, classes: Optional[str] = None):
+        super().__init__(name, id, classes)
+        self.title_text = title
+        self.items = items
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="menu-container"):
+            yield Label(self.title_text)
+            for label, action_id in self.items:
+                yield Button(label, id=action_id)
+            yield Button("Cancel", id="cancel", variant="error")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "cancel":
+            self.dismiss(None)
+        else:
+            self.dismiss(event.button.id)

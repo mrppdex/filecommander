@@ -1,5 +1,5 @@
-from tui.app import NortonCommanderApp
+from tui.app import FileCommanderApp
 
 if __name__ == "__main__":
-    app = NortonCommanderApp()
+    app = FileCommanderApp()
     app.run()

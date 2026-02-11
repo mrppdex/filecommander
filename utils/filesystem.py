@@ -5,7 +5,7 @@ from typing import Optional
 
 import re
 
-def list_directory(path: str, sort_by: str = "name", filter_pattern: Optional[str] = None) -> list[dict]:
+def list_directory(path: str, sort_by: str = "name", filter_pattern: Optional[str] = None, ascending: bool = True) -> list[dict]:
     """
     List contents of a directory and return metadata.
     sort_by: "name", "size", "date"
@@ -51,6 +51,38 @@ def list_directory(path: str, sort_by: str = "name", filter_pattern: Optional[st
 
     entries.sort(key=sort_key)
     
+    if not ascending:
+        # We want directories still on top? strict reverse reverses everything.
+        # If we want dirs on top, we need to handle that.
+        # Existing logic returns (not is_dir, val). False < True. So dirs (False) come before files (True).
+        # If we reverse, files come before dirs.
+        # We probably want to keep dirs on top, but reverse the secondary sort.
+        # But `list.sort` is stable.
+        # Let's re-sort or use a key that respects ascending flag for value but not for dir status.
+        
+        def sort_key_desc(x):
+            is_dir = x["is_dir"]
+            # To keep dirs on top (0), files bottom (1).
+            # But reverse value. 
+            # We can't easily negate strings.
+            # So we rely on Python's stable sort and do it in two passes or clever key.
+            # Easiest: separate dirs and files, sort each, then combine.
+            pass
+            
+    # Refined Sort Logic
+    dirs = [e for e in entries if e["is_dir"]]
+    files = [e for e in entries if not e["is_dir"]]
+    
+    def get_val(x):
+        if sort_by == "size": return x.get("raw_size", 0)
+        if sort_by == "date": return x.get("raw_date", 0)
+        return x["name"].lower()
+        
+    dirs.sort(key=get_val, reverse=not ascending)
+    files.sort(key=get_val, reverse=not ascending)
+    
+    entries = dirs + files
+
     if os.path.dirname(path) != path:
         entries.insert(0, {
             "name": "..",
@@ -64,9 +96,6 @@ def list_directory(path: str, sort_by: str = "name", filter_pattern: Optional[st
     
     return entries
 
-def is_ncdu_available() -> bool:
-    import shutil
-    return shutil.which("ncdu") is not None
 
 def open_file_with_default_app(path: str):
     import subprocess
@@ -108,5 +137,23 @@ def delete_item(path: str):
             os.remove(path)
         elif os.path.isdir(path):
             shutil.rmtree(path)
+    except OSError:
+        pass
+
+def archive_item(path: str):
+    import shutil
+    
+    dir_name = os.path.dirname(path)
+    base_name = os.path.basename(path)
+    archive_dir = os.path.join(dir_name, "archived")
+    
+    try:
+        os.makedirs(archive_dir, exist_ok=True)
+        
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        new_name = f"{timestamp}_{base_name}"
+        dest = os.path.join(archive_dir, new_name)
+        
+        shutil.move(path, dest)
     except OSError:
         pass

@@ -1,7 +1,7 @@
 from textual.app import App
 from tui.screens import MainScreen
 
-class NortonCommanderApp(App):
+class FileCommanderApp(App):
     CSS_PATH = "styles.css"
     BINDINGS = [
         ("q", "quit", "Quit"),
