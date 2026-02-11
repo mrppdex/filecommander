@@ -174,57 +174,89 @@ class MainScreen(Screen):
     def action_copy(self):
         active = self.get_active_pane()
         target = self.get_inactive_pane()
-        item = active.get_selected_file()
+        files = active.get_selected_files()
         
-        if not item:
+        if not files:
             self.notify("No item selected", severity="warning")
             return
 
+        message = f"Copy {len(files)} items?" if len(files) > 1 else f"Copy {os.path.basename(files[0])}?"
+
         def check_copy(do_copy: bool):
             if do_copy:
-                copy_item(item, target.current_path)
+                count = 0
+                for item in files:
+                    try:
+                        copy_item(item, target.current_path)
+                        count += 1
+                    except Exception as e:
+                        self.notify(f"Error copying {os.path.basename(item)}: {e}", severity="error")
+                
                 target.refresh_files()
-                self.notify(f"Copied {os.path.basename(item)}")
+                self.notify(f"Copied {count} items")
 
-        self.app.push_screen(ConfirmationModal(f"Copy {os.path.basename(item)}?"), check_copy)
+        self.app.push_screen(ConfirmationModal(message), check_copy)
 
     def action_move(self):
         active = self.get_active_pane()
         target = self.get_inactive_pane()
-        item = active.get_selected_file()
+        files = active.get_selected_files()
         
-        if not item:
+        if not files:
             self.notify("No item selected", severity="warning")
             return
+
+        message = f"Move {len(files)} items?" if len(files) > 1 else f"Move {os.path.basename(files[0])}?"
 
         def check_move(do_move: bool):
             if do_move:
-                move_item(item, target.current_path)
+                count = 0
+                for item in files:
+                    try:
+                        move_item(item, target.current_path)
+                        count += 1
+                    except Exception as e:
+                        self.notify(f"Error moving {os.path.basename(item)}: {e}", severity="error")
+                
                 active.refresh_files()
                 target.refresh_files()
-                self.notify(f"Moved {os.path.basename(item)}")
+                self.notify(f"Moved {count} items")
 
-        self.app.push_screen(ConfirmationModal(f"Move {os.path.basename(item)}?"), check_move)
+        self.app.push_screen(ConfirmationModal(message), check_move)
 
     def action_delete(self):
         active = self.get_active_pane()
-        item = active.get_selected_file()
+        files = active.get_selected_files()
         
-        if not item:
+        if not files:
             self.notify("No item selected", severity="warning")
             return
 
+        message = f"Delete or Archive {len(files)} items?" if len(files) > 1 else f"Delete or Archive {os.path.basename(files[0])}?"
+
         def check_delete(result: Optional[str]):
             if result == "delete":
-                delete_item(item)
+                count = 0
+                for item in files:
+                    try:
+                        delete_item(item)
+                        count += 1
+                    except Exception as e:
+                        self.notify(f"Error deleting {os.path.basename(item)}: {e}", severity="error")
                 active.refresh_files()
-                self.notify(f"Deleted {os.path.basename(item)}")
+                self.notify(f"Deleted {count} items")
             elif result == "archive":
-                archive_item(item)
+                count = 0
+                for item in files:
+                    try:
+                        archive_item(item)
+                        count += 1
+                    except Exception as e:
+                        self.notify(f"Error archiving {os.path.basename(item)}: {e}", severity="error")
                 active.refresh_files()
-                self.notify(f"Archived {os.path.basename(item)}")
+                self.notify(f"Archived {count} items")
 
-        self.app.push_screen(DeleteOptionsModal(f"Delete or Archive {os.path.basename(item)}?"), check_delete)
+        self.app.push_screen(DeleteOptionsModal(message), check_delete)
 
     def action_new_folder(self):
         def create_folder(name: Optional[str]):

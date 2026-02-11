@@ -1,5 +1,6 @@
 import os
 from textual import events, on
+from textual.coordinate import Coordinate
 from textual.widgets import Static, DataTable, Button
 from textual.containers import Vertical, Horizontal
 from textual.message import Message
@@ -7,16 +8,61 @@ from utils.filesystem import list_directory
 from typing import Optional
 
 class CommanderTable(DataTable):
+    @on(events.Click)
     def on_click(self, event: events.Click) -> None:
-        if event.button == 1:
+        # Debug logging to file
+        # with open("debug_click.log", "a") as f:
+        #     f.write(f"Click: button={event.button}, modifiers={event.modifiers}\n")
+
+        # Allow left click (1) or right click (3) for selection if modifiers are present
+        # On Mac, Ctrl+Click often comes as Button 3
+        if event.button == 1 or event.button == 3:
             try:
                 # Attempt to get the row under the mouse
                 coordinate = self.hover_coordinate
                 if coordinate:
                     cell_key = self.coordinate_to_cell_key(coordinate)
-                    self.post_message(DataTable.RowSelected(self, cell_key.row_key))
+                    # Check for modifiers
+                    # Textual modifiers: ctrl, shift, alt, meta
+                    ctrl = "ctrl" in event.modifiers or "meta" in event.modifiers
+                    shift = "shift" in event.modifiers
+                    
+                    # Also consider simple Right Click (Button 3) as a toggle if no modifiers? 
+                    # Or just treat Button 3 as "Ctrl+Click" equivalent? 
+                    # Let's say Button 3 is "Toggle"
+                    if event.button == 3:
+                        ctrl = True
+
+                    if ctrl or shift:
+                        # Custom message for selection
+                        self.post_message(self.FileSelectionEvent(cell_key.row_key, ctrl, shift))
+                        # Stop event propagation to prevent DataTable from handling it
+                        event.stop()
+                        self.cursor_coordinate = coordinate
+                    elif event.button == 1:
+                        # Normal left click without modifiers
+                        self.post_message(DataTable.RowSelected(self, cell_key.row_key))
             except Exception:
                 pass
+
+    BINDINGS = [
+        ("space", "toggle_select", "Select"),
+    ]
+
+    def action_toggle_select(self):
+        try:
+            row_key = self.coordinate_to_cell_key(self.cursor_coordinate).row_key
+            self.post_message(self.FileSelectionEvent(row_key, ctrl=True, shift=False))
+            self.action_cursor_down()
+        except Exception:
+            pass
+
+    class FileSelectionEvent(Message):
+        def __init__(self, row_key, ctrl: bool, shift: bool):
+            self.row_key = row_key
+            self.ctrl = ctrl
+            self.shift = shift
+            super().__init__()
 
 class Toolbar(Horizontal):
     def on_mount(self):
@@ -65,6 +111,18 @@ class FilePane(Vertical):
         self.sort_mode = "name" # name, size, date
         self.sort_ascending = True
         self.filter_pattern = None
+        self.files_selected: set[str] = set()
+        self.last_selected_key: Optional[str] = None
+
+    def get_selected_files(self) -> list[str]:
+        if self.files_selected:
+            return list(self.files_selected)
+        
+        # If no explicit selection, return the current cursor item
+        single = self.get_selected_file()
+        if single:
+            return [single]
+        return []
 
     def get_selected_file(self):
         try:
@@ -85,12 +143,34 @@ class FilePane(Vertical):
 
     def refresh_files(self):
         table = self.query_one(CommanderTable)
+        
+        # Save cursor position (key)
+        cursor_row_key_value = None
+        try:
+            if table.row_count > 0:
+                cursor_row_key_value = table.coordinate_to_cell_key(table.cursor_coordinate).row_key.value
+        except Exception:
+            pass
+
         table.clear()
         files = list_directory(self.current_path, self.sort_by, self.filter_pattern, self.sort_ascending)
+        
+        # Prune selections that are no longer valid (e.g. deleted/moved files)
+        current_filenames = {os.path.join(self.current_path, f["name"]) for f in files if f["name"] != ".."}
+        self.files_selected = {f for f in self.files_selected if f in current_filenames}
+
         for f in files:
             # key is the full path or special ".."
             key = os.path.join(self.current_path, f["name"]) if f["name"] != ".." else os.path.dirname(self.current_path)
-            table.add_row(f["name"], f["size"], f["date"], key=f["name"])
+            table.add_row(f["name"], f["size"], f["date"], key=key)
+            
+            if key in self.files_selected:
+                index = table.get_row_index(key)
+                if index is not None:
+                    # Apply selection style
+                    for col in range(len(table.columns)):
+                        coord = Coordinate(index, col)
+                        table.update_cell_at(coord, f"[reverse]{table.get_cell_at(coord)}[/reverse]")
         
         # Update path display with status
         status = f"{self.current_path}"
@@ -99,6 +179,16 @@ class FilePane(Vertical):
         order = "Asc" if self.sort_ascending else "Desc"
         status += f" [Sort: {self.sort_mode} {order}]"
         self.query_one("#path-display", Static).update(status)
+        
+        # Restore cursor
+        if cursor_row_key_value:
+            try:
+                # Find index of the key
+                index = table.get_row_index(cursor_row_key_value)
+                if index is not None:
+                     table.cursor_coordinate = Coordinate(index, 0)
+            except Exception:
+                pass
 
     @property
     def sort_by(self):
@@ -124,6 +214,12 @@ class FilePane(Vertical):
 
     @on(DataTable.RowSelected)
     def on_data_table_row_selected(self, event: DataTable.RowSelected):
+        # Clear selection on normal activation (click/enter) unless modified handled elsewhere
+        # (Modifiers are handled in on_click and don't trigger this usually, 
+        # but if they did, we might check. But here we assume this is "Single Select/Activate")
+        self.files_selected.clear()
+        self.refresh_files() # Refresh to remove styling from previously selected
+
         # row_key is what we passed as key to add_row (the name)
         selected_name = event.row_key.value
         if selected_name == "..":
@@ -138,12 +234,89 @@ class FilePane(Vertical):
             else:
                 self.post_message(self.FileClicked(path))
 
+    @on(CommanderTable.FileSelectionEvent)
+    def on_file_selection(self, event: CommanderTable.FileSelectionEvent):
+        key = event.row_key.value
+        if key == "..":
+            return
+            
+        full_path = key # Key is already full path now
+        
+        if event.shift and self.last_selected_key:
+            # Range selection
+            self.select_range(self.last_selected_key, full_path)
+        elif event.ctrl:
+            # Toggle selection
+            self.toggle_selection(full_path)
+            self.last_selected_key = full_path
+        
+        # Refresh to show selection styles
+        self.refresh_files()
+
+    def toggle_selection(self, key: str):
+        if key in self.files_selected:
+            self.files_selected.remove(key)
+        else:
+            self.files_selected.add(key)
+
+    def select_range(self, start_key: str, end_key: str):
+        table = self.query_one(CommanderTable)
+        try:
+            start_idx = table.get_row_index(start_key)
+            end_idx = table.get_row_index(end_key)
+            
+            if start_idx is None or end_idx is None:
+                return
+                
+            low = min(start_idx, end_idx)
+            high = max(start_idx, end_idx)
+            
+            # Select everything in between
+            # We need to iterate over rows in the table
+            # There isn't a direct way to get row key by index easily in older Textual versions,
+            # but we can iterate. Or we can just rebuild the set.
+            # Assuming we want to ADD to selection
+            
+            # We can get row keys by iterating table rows?
+            # Actually table.rows returns mapping.
+            
+            # Let's iterate linearly for now, inefficient but works for small lists
+            # Textual 0.50+ has `get_row_at`? No.
+            # We can use `coordinate_to_cell_key`
+            
+            for i in range(low, high + 1):
+                # We need the key at this index.
+                # `get_row_at` might return data, not key.
+                # Check textual docs or source... `get_row_at(index)` returns Row object which has `key`.
+                # Assuming modern Textual
+                # row = table.get_row_at(i) # This might not exist.
+                # Alternative: iterate all rows and check index.
+                pass 
+                
+            # Better way:
+            # We want to select the range.
+            # Since we iterate all files in refresh_files, we can't easily get them by index here without access to that list.
+            # But the table has them.
+            
+            # Implementation detail:
+            # We need a way to map index -> key
+             # Let's just create a list of keys from the table
+            keys = [row.key.value for row in table.ordered_rows]
+            
+            for i in range(low, high + 1):
+                if i < len(keys):
+                    self.files_selected.add(keys[i])
+
+        except Exception:
+            pass
+
     def change_dir(self, new_paths):
         try:
              # Normalize path
             target = os.path.normpath(new_paths)
             if os.path.isdir(target):
                 self.current_path = target
+                self.files_selected.clear()
                 self.refresh_files()
                 self.query_one(CommanderTable).focus()
         except OSError:
